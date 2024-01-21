@@ -31,4 +31,4 @@ function compareAndDeleteFiles(destFiles, sourseFiles) {
       if (err) return console.error(err.message);
     });
   });
-};
+}
