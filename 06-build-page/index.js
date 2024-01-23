@@ -2,10 +2,8 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const templatePath = path.join(__dirname, 'template.html');
-const headerPath = path.join(__dirname, 'components', 'header.html');
-const articlesPath = path.join(__dirname, 'components', 'articles.html');
-const footerPath = path.join(__dirname, 'components', 'footer.html');
 const projectDirPath = path.join(__dirname, 'project-dist');
+const componentsPath = path.join(__dirname, 'components');
 
 const readFiles = async (fileDir, files) => {
   try {
@@ -47,7 +45,7 @@ const createDirAndFiles = async () => {
       readFiles('img', img),
       readFiles('svg', svg),
     ]);
-    await readAndBundleHtml();
+    await readAndBundleHtml(componentsPath);
     await readAndBundleCss();
   } catch (error) {
     console.error(error);
@@ -56,7 +54,7 @@ const createDirAndFiles = async () => {
 
 createDirAndFiles();
 
-const readAndBundleHtml = async () => {
+const readAndBundleHtml = async (componentsPath) => {
   try {
     const readTemplate = await fs.readFile(
       templatePath,
@@ -65,32 +63,25 @@ const readAndBundleHtml = async () => {
         if (err) return console.error(err);
       },
     );
-    const headerContent = await fs.readFile(
-      headerPath,
-      { encoding: 'utf-8' },
-      (err) => {
-        if (err) return console.error(err);
-      },
-    );
-    const articlesContent = await fs.readFile(
-      articlesPath,
-      { encoding: 'utf-8' },
-      (err) => {
-        if (err) return console.error(err);
-      },
-    );
-    const footerContent = await fs.readFile(
-      footerPath,
-      { encoding: 'utf-8' },
-      (err) => {
-        if (err) return console.error(err);
-      },
-    );
 
-    const replaced = readTemplate
-      .replace('{{header}}', headerContent)
-      .replace('{{articles}}', articlesContent)
-      .replace('{{footer}}', footerContent);
+    const components = await fs.readdir(path.join(componentsPath));
+    const componentsContent = await Promise.all(
+      components.map(async (component) => {
+        if (path.extname(component) === '.html') {
+          const content = await fs.readFile(
+            path.join(componentsPath, component),
+            { encoding: 'utf-8' },
+          );
+          const componentName = path.parse(component).name;
+          const placeholder = `{{${componentName}}}`;
+          return { placeholder, content };
+        }
+      }),
+    );
+    let replaced = readTemplate;
+    componentsContent.filter(Boolean).forEach(({ placeholder, content }) => {
+      replaced = replaced.replace(placeholder, content);
+    });
     await fs.writeFile(path.join(projectDirPath, 'index.html'), replaced);
   } catch (error) {
     console.error(error);
